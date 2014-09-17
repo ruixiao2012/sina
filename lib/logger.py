@@ -2,24 +2,16 @@ __author__ = 'qipanguan'
 
 #!/bin/env python2.6
 # -*- coding: utf-8 -*-
-# Desc: script for
-# Author: chenjian7@staff.sina.com.cn
-# Version: v1.1
-# date:2013 Dec 02 05:34:36 PM
 
-import sys
 import ConfigParser
-
-reload(sys)
-sys.setdefaultencoding("utf-8")
 
 import logging
 import logging.handlers
 
 cp = ConfigParser.ConfigParser()
-cp.read('../conf/checker.conf')
+cp.read('conf/checker.conf')
 
-logger_list = ['logger_alert', 'logger_checker']
+logger_list = ['logger_alerter', 'logger_checker']
 
 for mylog in logger_list:
     log_name = cp.get(mylog, 'name')
