@@ -3,15 +3,13 @@ __author__ = 'qipanguan'
 #!/bin/env python2.6
 # -*- coding: utf-8 -*-
 
-import ConfigParser
 
 import logging
 import logging.handlers
+from lib import config
 
-cp = ConfigParser.ConfigParser()
-cp.read('conf/checker.conf')
-
-logger_list = ['logger_alerter', 'logger_checker']
+cp = config.Config().config_parser
+logger_list = ['logger']
 
 for mylog in logger_list:
     log_name = cp.get(mylog, 'name')

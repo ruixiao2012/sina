@@ -6,8 +6,9 @@ import ConfigParser
 import logging
 from lib import urlutil
 from lib import logger
+from lib import config
 
-checker_log = logging.getLogger('dsp_checker')
+checker_log = logging.getLogger('dsp_alert')
 
 
 class JsonReturnIllegal(Exception):
@@ -16,8 +17,8 @@ class JsonReturnIllegal(Exception):
 
 class NodeFromZK(object):
     def __init__(self, service_name, idc=None):
-        cp = ConfigParser.ConfigParser()
-        cp.read('conf/checker.conf')
+        myconfig = config.Config()
+        cp = myconfig.config_parser
         self.service_name = service_name
         self.config = cp
 
@@ -35,13 +36,13 @@ class NodeFromZK(object):
         nodes_dict = self.get_check_nodes()
         default_alert_conf_dict = self.get_default_alert_conf()
         for node, online_alert_conf_dict in nodes_dict.items():
-            host, port = node.split(':')
             online_alert_conf_dict = online_alert_conf_dict.strip()
             if online_alert_conf_dict == 'None' or not online_alert_conf_dict:
-                nodes_list.append([host, port, default_alert_conf_dict])
+                nodes_list.append([node, default_alert_conf_dict])
             else:
                 if is_alert_conf_dict(online_alert_conf_dict):
-                    nodes_list.append([host, port, online_alert_conf_dict])
+                    online_alert_conf_dict = parse_alert_conf(online_alert_conf_dict)
+                    nodes_list.append([node, online_alert_conf_dict])
                 else:
                     checker_log.warn('%s %s:%s online alert conf dict parse error' % (self.service_name, host, port))
                     continue
@@ -51,15 +52,15 @@ class NodeFromZK(object):
         try:
             conf_dict = AlertConfFromZK(self.service_name).get_conf()
         except Exception as e:
-            raise Exception('[%s] configure get from zk fail:%s' %
+            raise Exception('[%s] configure get from zk api fail:%s' %
                             (self.service_name, e))
         return conf_dict
 
     def get_check_nodes(self):
         try:
-            url = self.config.get('global', 'zk_api')
+            url = self.config.get('global', 'zk_aggr_api')
             data = {
-                'serviceType': self.service_name,
+                'service_type': self.service_name,
                 'idc': self.idc
             }
             ret_info = urlutil.curl_post_data(url, data)
@@ -81,24 +82,22 @@ class NodeFromZK(object):
 class AlertConfFromZK(object):
     def __init__(self, server_type):
         self.server_type = server_type
-        cp = ConfigParser.ConfigParser()
-        cp.read('conf/checker.conf')
-        self.config = cp
+        myconfig = config.Config()
+        self.config = myconfig.config_parser
 
     def get_conf(self):
-        import zookeeper
-
-        zk_conn = zookeeper.init(self.config.get('global', 'zk_conn'))
-        watch_service_alert_conf_dict = eval(self.config.get('global', 'watch_service_alert_conf_dict'))
         try:
-            conf_file = '%s%s' % (self.config.get('global', 'zk_alert_conf_dir'),
-                                  watch_service_alert_conf_dict[self.server_type])
-            conf_data = zookeeper.get(zk_conn, conf_file)[0]
+            url = self.config.get('global', 'zk_get_node_api')
+            watch_service_alert_conf_dict = eval(self.config.get('global', 'watch_service_alert_conf_dict'))
+            data = {
+                "node_path": "%s%s" % (self.config.get('global', 'zk_alert_conf_dir'),
+                                       watch_service_alert_conf_dict[self.server_type])
+            }
+            ret_info = urlutil.curl_post_data(url, data)
+            ret_dict = urlutil.curl_load_json(url, ret_info)
         except Exception:
             raise
-        finally:
-            zookeeper.close(zk_conn)
-        conf_dict = parse_alert_conf(conf_data)
+        conf_dict = parse_alert_conf(ret_dict['content'])
         return conf_dict
 
 
@@ -110,7 +109,6 @@ def is_alert_conf_dict(alert_conf_dict):
             return False
     except Exception:
         return False
-
 
 def parse_alert_conf(conf_data):
     """
@@ -134,4 +132,5 @@ def parse_alert_conf(conf_data):
 
 
 if __name__ == '__main__':
-    print NodeFromZK('cs').get_check_nodes()
+    print NodeFromZK('cs').get_check_list()
+    # print AlertConfFromZK('cs').get_conf()
