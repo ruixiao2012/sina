@@ -1,4 +1,6 @@
 __author__ = 'qipanguan'
+# Callable SinaRedis Check Module
+# Author: Qipan Guan <qipan@staff.sina.com.cn>
 import redis
 import socket
 import logging
@@ -68,7 +70,7 @@ class check_sinaredis():
 
     def redis_version_check(self):
         if 'redis_version' not in self.info:
-            checker_log.debug(
+            checker_log.info(
                 '[%s] get redis_version illegal, it maybe redisscounter or counterservice...' % self.meta_data)
             return False
         else:

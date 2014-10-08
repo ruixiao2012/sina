@@ -1,6 +1,8 @@
 __author__ = 'qipanguan'
 # !/bin/env python2.6
 # -*- coding: utf-8 -*-
+# Author: Qipan Guan <qipan@staff.sina.com.cn>
+# ZooKeeper Config functions supported by sina wolf API by dashan@staff.sina.com.cn
 
 import ConfigParser
 import logging
@@ -109,6 +111,7 @@ def is_alert_conf_dict(alert_conf_dict):
             return False
     except Exception:
         return False
+
 
 def parse_alert_conf(conf_data):
     """

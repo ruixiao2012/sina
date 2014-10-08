@@ -1,6 +1,7 @@
 __author__ = 'qipanguan'
 # coding: utf-8
 # Author: Qipan Guan <qipan@staff.sina.com.cn>
+# Use to url post/get functions
 
 import json
 import urllib

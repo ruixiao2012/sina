@@ -1,6 +1,7 @@
 __author__ = 'qipanguan'
 # !/usr/bin/python2.6
 # coding=utf-8
+# Thread Pool Manager
 
 import threading
 import Queue

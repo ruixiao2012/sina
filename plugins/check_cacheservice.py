@@ -1,4 +1,6 @@
 __author__ = 'qipanguan'
+# Callable Cacheservcie Check Module
+# Author: Qipan Guan <qipan@staff.sina.com.cn>
 import memcache
 import logging
 
@@ -29,8 +31,10 @@ class check_cacheservice(object):
         server = ['%s:%s' % (self.host, self.port)]
         try:
             is_alive = memcache.Client(server)
+            is_alive.socket_timeout = 2
+            is_alive.get_stats()
         except Exception as e:
-            checker_log.error('[%s] connect err:%s' %
+            checker_log.error('[%s] connect err get stats:%s' %
                               (self.meta_data, e))
             return False
         return is_alive
