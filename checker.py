@@ -69,7 +69,7 @@ class Checker(object):
 
     def start(self):
         """
-        Start the checker to watch every node in every servcie
+        Start the checker to watch every node in every service
         :return:
         """
         self.manager.start_working()

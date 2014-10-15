@@ -46,7 +46,7 @@ class NodeFromZK(object):
                     online_alert_conf_dict = parse_alert_conf(online_alert_conf_dict)
                     nodes_list.append([node, online_alert_conf_dict])
                 else:
-                    checker_log.warn('%s %s:%s online alert conf dict parse error' % (self.service_name, host, port))
+                    checker_log.warn('%s %s:%s online alert etc dict parse error' % (self.service_name, host, port))
                     continue
         return nodes_list
 
