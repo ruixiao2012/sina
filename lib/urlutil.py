@@ -14,7 +14,7 @@ def curl_get_data(url):
         retry_times += 1
         try:
             req = urllib2.Request(url)
-            rsp = urllib2.urlopen(req)
+            rsp = urllib2.urlopen(req, timeout=10)
             result = rsp.read()
             return result
         except Exception, e:
@@ -29,7 +29,7 @@ def curl_post_data(url, data):
         try:
             data = urllib.urlencode(data)
             req = urllib2.Request(url, data)
-            rsp = urllib2.urlopen(req)
+            rsp = urllib2.urlopen(req, timeout=60)
             result = rsp.read()
             return result
         except Exception, e:

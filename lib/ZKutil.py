@@ -39,14 +39,14 @@ class NodeFromZK(object):
         default_alert_conf_dict = self.get_default_alert_conf()
         for node, online_alert_conf_dict in nodes_dict.items():
             online_alert_conf_dict = online_alert_conf_dict.strip()
-            if online_alert_conf_dict == 'None' or not online_alert_conf_dict:
+            if online_alert_conf_dict == 'None' or not online_alert_conf_dict or not online_alert_conf_dict == '':
                 nodes_list.append([node, default_alert_conf_dict])
             else:
                 if is_alert_conf_dict(online_alert_conf_dict):
                     online_alert_conf_dict = parse_alert_conf(online_alert_conf_dict)
                     nodes_list.append([node, online_alert_conf_dict])
                 else:
-                    checker_log.warn('%s %s:%s online alert etc dict parse error' % (self.service_name, host, port))
+                    checker_log.warn('%s %s online alert etc dict parse error' % (self.service_name, node))
                     continue
         return nodes_list
 
@@ -125,10 +125,10 @@ def parse_alert_conf(conf_data):
             if not conf:
                 continue
             conf_list = conf.split(':')
-            metric, content, level = conf_list
+            metric, threshold, alert_level, sms, mail, watchid = conf_list
             if metric not in conf_dict:
                 conf_dict[metric] = []
-            conf_dict[metric].append([content, level])
+            conf_dict[metric].append([threshold, alert_level, sms, mail, watchid])
     except Exception as e:
         raise Exception('configure from zk parse fail:%s' % e)
     return conf_dict

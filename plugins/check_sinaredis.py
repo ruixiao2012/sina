@@ -5,6 +5,7 @@ import redis
 import socket
 import logging
 import datetime
+from lib import riemann
 
 checker_log = logging.getLogger('dsp_alert')
 
@@ -18,6 +19,7 @@ class check_sinaredis():
         self.service_type = "sinaredis"
         self.timeout = self.redis_timeout()
         self.check_items = alert_conf_dict
+        self.riemann_client = riemann.MyRiemann()
         if not self.host_list:
             self.hostname_parse_fail()
         else:
@@ -44,19 +46,30 @@ class check_sinaredis():
             return 3
 
     def start_check(self):
-        check_list = [[self.check_cronbgsave, self.check_items['cronbgsave']],
-                      [self.check_readonly, self.check_items['read_only']],
-                      [self.check_max_memory, self.check_items['max_mem']],
-                      [self.check_conn_num, self.check_items['curr_connections']]]
+        check_list = [[self.check_cronbgsave, 'Sinadsp_redis_cronbgsave', self.check_items['Sinadsp_redis_cronbgsave']],
+                      [self.check_readonly, 'Sinadsp_redis_read_only', self.check_items['Sinadsp_redis_read_only']],
+                      [self.check_max_memory, 'Sinadsp_redis_max_mem', self.check_items['Sinadsp_redis_max_mem']],
+                      [self.check_conn_num, 'Sinadsp_redis_curr_connections',
+                       self.check_items['Sinadsp_redis_curr_connections']]]
         if self.role == 'slave':
-            check_list.append([self.check_slave_conn, self.check_items['slave_conn']])
-            check_list.append([self.check_delay_seconds, self.check_items['delay_seconds']])
+            check_list.append(
+                [self.check_slave_conn, 'Sinadsp_redis_slave_conn', self.check_items['Sinadsp_redis_slave_conn']])
+            check_list.append([self.check_delay_seconds, 'Sinadsp_redis_delay_seconds',
+                               self.check_items['Sinadsp_redis_delay_seconds']])
 
-        for func, check_item in check_list:
-            func(check_item)
+        for func, key, check_item in check_list:
+            func(key, check_item)
 
     def hostname_parse_fail(self):
         checker_log.warn('[%s %s] parse hostname fail' % (self.domain, self.port))
+        self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                 service='Sinadsp_redis_hostname_parse',
+                                 description='redis hostname parse err...',
+                                 alert_level=self.check_items['Sinadsp_redis_hostname_parse'][0][1],
+                                 threshold=self.check_items['Sinadsp_redis_hostname_parse'][0][0],
+                                 sms=self.check_items['Sinadsp_redis_hostname_parse'][0][2],
+                                 mail=self.check_items['Sinadsp_redis_hostname_parse'][0][3],
+                                 watchid=self.check_items['Sinadsp_redis_hostname_parse'][0][4])
         return True
 
     def conn_redis(self):
@@ -65,6 +78,14 @@ class check_sinaredis():
             redis_r.ping()
         except Exception as e:
             checker_log.warn('[%s] conn redis fail:%s' % (self.meta_data, e))
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service='Sinadsp_redis_conn_fail',
+                                     description='redis conn fail err for 2s...',
+                                     alert_level=self.check_items['Sinadsp_redis_conn_fail'][0][1],
+                                     threshold=self.check_items['Sinadsp_redis_conn_fail'][0][0],
+                                     sms=self.check_items['Sinadsp_redis_conn_fail'][0][2],
+                                     mail=self.check_items['Sinadsp_redis_conn_fail'][0][3],
+                                     watchid=self.check_items['Sinadsp_redis_conn_fail'][0][4])
             return False
         return redis_r
 
@@ -130,7 +151,7 @@ class check_sinaredis():
             return False
         return ret_data
 
-    def check_cronbgsave(self, threshold):
+    def check_cronbgsave(self, key, value):
         if self.is_sinaredis == '2.4.18':
             if_cronsave = self.config_get_commands('cronbgrewriteaof')
         else:
@@ -148,31 +169,56 @@ class check_sinaredis():
         # Check if cronsave is set
         if not cronsave_set and aof_set == 'yes':
             checker_log.warn('[%s] check redis cronsave set:[%s] error %s' %
-                             (self.meta_data, cronsave_set, threshold))
+                             (self.meta_data, cronsave_set, value))
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service=key,
+                                     description='redis cronsave is not set...',
+                                     alert_level=value[0][1],
+                                     threshold=value[0][0],
+                                     sms=value[0][2],
+                                     mail=value[0][3],
+                                     watchid=value[0][4])
             return True
         else:
             checker_log.debug('[%s] check redis cronsave set %s ok!' %
                               (self.meta_data, cronsave_set))
 
-    def check_slave_conn(self, threshold):
+    def check_slave_conn(self, key, value):
         try:
             link_status = self.info['master_link_status']
         except Exception as e:
             checker_log.error('[%s %s] slave get master_link_status flag fail:%s' %
                               (self.meta_data, self.info, e))
             if link_status != 'up':
-                checker_log.warn('[%s] check redis slave conn abnormal[%s] error %s' %
-                                 (self.meta_data, link_status, threshold))
+                checker_log.warn('[%s] check redis slave link status[%s] error...' %
+                                 (self.meta_data, link_status))
+                self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                         service=key,
+                                         description='redis slave link status err...[%s]' % link_status,
+                                         alert_level=value[0][1],
+                                         threshold=value[0][0],
+                                         sms=value[0][2],
+                                         mail=value[0][3],
+                                         watchid=value[0][4])
+
             else:
                 checker_log.debug('[%s] check redis slave conn %s ok!' %
                                   (self.meta_data, link_status))
 
-    def check_conn_num(self, threshold):
+    def check_conn_num(self, key, value):
         try:
             now_clients_num = int(self.info['connected_clients'])
-            if now_clients_num >= int(threshold[0][0]):
+            if now_clients_num >= int(value[0][0]):
                 checker_log.warn('[%s] check connection number:[%s] error' %
                                  (self.meta_data, now_clients_num))
+                self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                         service=key,
+                                         description='redis curr_conn [%s]>[%s]...' % (now_clients_num, value[0][0]),
+                                         alert_level=value[0][1],
+                                         threshold=value[0][0],
+                                         sms=value[0][2],
+                                         mail=value[0][3],
+                                         watchid=value[0][4])
             else:
                 checker_log.debug('[%s] check connection number %s ok!' %
                                   (self.meta_data, now_clients_num))
@@ -180,31 +226,55 @@ class check_sinaredis():
             checker_log.error('[%s %s] get clients num fail:%s' %
                               (self.meta_data, self.info, e))
 
-    def check_delay_seconds(self, threshold):
+    def check_delay_seconds(self, key, value):
         try:
             delay_seconds = int(self.info['delay_seconds'])
-            if delay_seconds >= int(threshold[0][0]):
+            if delay_seconds >= int(value[0][0]):
                 checker_log.warn('[%s] check delay_seconds:[%s] error' %
                                  (self.meta_data, delay_seconds))
+                self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                         service=key,
+                                         description='redis slave delay [%s]>[%s]...' % (delay_seconds, value[0][0]),
+                                         alert_level=value[0][1],
+                                         threshold=value[0][0],
+                                         sms=value[0][2],
+                                         mail=value[0][3],
+                                         watchid=value[0][4])
             else:
                 checker_log.debug('[%s] check delay_seconds %s ok!' %
                                   (self.meta_data, delay_seconds))
         except Exception:
             return False
 
-    def check_readonly(self, threshold):
+    def check_readonly(self, key, value):
         try:
             read_only = self.config_get_commands('readonly')
             if self.role == 'slave' and read_only == 'no':
                 checker_log.warn(
-                    '[%s] check redis slave read only:[%s] error %s' % (self.meta_data, read_only, threshold))
+                    '[%s] check redis slave read only:[%s] error %s' % (self.meta_data, read_only, value))
+                self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                         service=key,
+                                         description='redis slave config readonly is no.',
+                                         alert_level=value[0][1],
+                                         threshold=value[0][0],
+                                         sms=value[0][2],
+                                         mail=value[0][3],
+                                         watchid=value[0][4])
             if self.role == 'master' and read_only == 'yes':
                 checker_log.warn(
-                    '[%s] check redis master read only:[%s] error %s' % (self.meta_data, read_only, threshold))
+                    '[%s] check redis master read only:[%s] error %s' % (self.meta_data, read_only, value))
+                self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                         service=key,
+                                         description='redis master config readonly is yes.',
+                                         alert_level=value[0][1],
+                                         threshold=value[0][0],
+                                         sms=value[0][2],
+                                         mail=value[0][3],
+                                         watchid=value[0][4])
         except Exception:
             return False
 
-    def check_max_memory(self, threshold):
+    def check_max_memory(self, key, value):
         try:
             policy_ret = self.config_get_commands('maxmemory-policy')
             policy = policy_ret[1]
@@ -219,11 +289,23 @@ class check_sinaredis():
                     return False
                 mem_used_percent = float(used_mem) / max_mem
                 used_percent = '%d%%' % int(mem_used_percent * 100)
-                if mem_used_percent >= float(threshold[0][0]):
-                    checker_log.warn('[%s] check redis mem used:[%s]%% error' % (self.meta_data, used_percent))
-                else:
-                    checker_log.debug('[%s] check redis mem  used %s ok!' %
-                                      (self.meta_data, used_mem))
+
+                thresholds = value[0][0].split(',')
+                alert_levels = value[0][1].split(',')
+                for i, threshold in enumerate(thresholds):
+                    if mem_used_percent >= float(threshold):
+                        checker_log.warn('[%s] check redis mem used:[%s]%% error' % (self.meta_data, used_percent))
+                        return self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                                        service=key,
+                                                        description='redis max memory [%s]>[%s].',
+                                                        alert_level=alert_levels[i],
+                                                        threshold=value[0][0],
+                                                        sms=value[0][2],
+                                                        mail=value[0][3],
+                                                        watchid=value[0][4])
+                    else:
+                        checker_log.debug('[%s] check redis mem  used %s ok!' %
+                                          (self.meta_data, used_mem))
         except Exception as e:
             checker_log.warn('[%s] redis check max memory illegal %s' % (self.meta_data, e))
 

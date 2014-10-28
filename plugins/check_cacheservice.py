@@ -3,6 +3,7 @@ __author__ = 'qipanguan'
 # Author: Qipan Guan <qipan@staff.sina.com.cn>
 import memcache
 import logging
+from lib import riemann
 
 checker_log = logging.getLogger('dsp_alert')
 
@@ -15,26 +16,39 @@ class check_cacheservice(object):
         self.service_type = "cs"
         self.check_items = alert_conf
         self.meta_data = '%s_%s:%s' % (self.service_type, self.host, self.port)
-        self.is_alive = self.alive_check()
+        self.riemann_client = riemann.MyRiemann()
+        self.is_alive = self.alive_check
+
         if self.is_alive:
             self.stats = self.get_stats()
             self.start_check()
 
     def start_check(self):
-        check_list = [[self.check_cs_mem, self.check_items['mem_size']],
-                      [self.check_cs_conn, self.check_items['curr_connections']]]
-        for func, threshold in check_list:
-            func(threshold)
+        check_list = [[self.check_cs_mem, 'Sina_dsp_cs_mem_size', self.check_items['Sina_dsp_cs_mem_size']],
+                      [self.check_cs_conn, 'Sina_dsp_cs_curr_connections',
+                       self.check_items['Sina_dsp_cs_curr_connections']]]
+        for func, check_key, check_values in check_list:
+            func(check_key, check_values)
         self.close_conn()
 
+    @property
     def alive_check(self):
         server = ['%s:%s' % (self.host, self.port)]
         try:
             is_alive = memcache.Client(server)
             is_alive.socket_timeout = 2
-            is_alive.get_stats()
+            if not is_alive.get_stats():
+                raise Exception
         except Exception as e:
-            checker_log.error('[%s] connect err get stats:%s' %
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service='Sina_dsp_cs_conn_fail',
+                                     description='cacheservice conn timeout 2s...',
+                                     alert_level=self.check_items['Sina_dsp_cs_conn_fail'][0][1],
+                                     threshold=self.check_items['Sina_dsp_cs_conn_fail'][0][0],
+                                     sms=self.check_items['Sina_dsp_cs_conn_fail'][0][2],
+                                     mail=self.check_items['Sina_dsp_cs_conn_fail'][0][3],
+                                     watchid=self.check_items['Sina_dsp_cs_conn_fail'][0][4])
+            checker_log.error('[%s] connect conn fail,get stats err:%s' %
                               (self.meta_data, e))
             return False
         return is_alive
@@ -56,7 +70,7 @@ class check_cacheservice(object):
         except:
             pass
 
-    def check_cs_mem(self, threshold):
+    def check_cs_mem(self, key, value):
         if self.stats is False:
             return False
         try:
@@ -65,14 +79,22 @@ class check_cacheservice(object):
         except Exception as e:
             checker_log.error('[%s] get used_mem occur error:%s\nstats:%s' %
                               (self.meta_data, e, self.stats))
-        if used_mem >= int(threshold[0][0]):
+        if used_mem >= int(value[0][0]):
             checker_log.warn('[%s ] check used_memory %s >= %s!' %
-                            (self.meta_data, used_mem, threshold))
+                             (self.meta_data, used_mem, value[0][0]))
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service=key,
+                                     description='%s %s >= %s' % (key, used_mem, value[0][0]),
+                                     alert_level=value[0][1],
+                                     threshold=value[0][0],
+                                     sms=value[0][2],
+                                     mail=value[0][3],
+                                     watchid=value[0][4])
         else:
             checker_log.debug('[%s] check used_memory %s ok!' %
                               (self.meta_data, used_mem))
 
-    def check_cs_conn(self, threshold):
+    def check_cs_conn(self, key, value):
         if self.stats is False:
             return False
         try:
@@ -80,11 +102,19 @@ class check_cacheservice(object):
             conn_num = int(stats['connected_clients'])
         except Exception as e:
             checker_log.error('[%s] check conn num occur error:%s\n stats:%s' %
-                             (self.meta_data, e, self.stats))
+                              (self.meta_data, e, self.stats))
             return False
-        if conn_num >= int(threshold[0][0]):
+        if conn_num >= int(value[0][0]):
             checker_log.warn('[%s ] check conn %s >= %s!' %
-                            (self.meta_data, conn_num, threshold))
+                             (self.meta_data, conn_num, value[0][0]))
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service=key,
+                                     description='%s %s >= %s' % (key, conn_num, value[0][0]),
+                                     alert_level=value[0][1],
+                                     threshold=value[0][0],
+                                     sms=value[0][2],
+                                     mail=value[0][3],
+                                     watchid=value[0][4])
         else:
             checker_log.debug('[%s %s] conn num ok!' %
-                        (self.meta_data, conn_num))
+                              (self.meta_data, conn_num))

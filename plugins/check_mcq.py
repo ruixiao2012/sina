@@ -3,6 +3,7 @@ __author__ = 'qipanguan'
 # Author: Qipan Guan <qipan@staff.sina.com.cn>
 import memcache
 import logging
+from lib import riemann
 
 checker_log = logging.getLogger('dsp_alert')
 
@@ -13,6 +14,7 @@ class check_mcq(object):
         self.check_items = alert_conf
         self.service_name = 'mcq'
         self.meta_data = '%s_%s_%s' % (self.service_name, self.host, self.port)
+        self.riemann_client = riemann.MyRiemann()
         self.is_alive = self.alive_check()
         if self.is_alive:
             self.queue_info_dict = self.get_queue_stats()
@@ -33,6 +35,14 @@ class check_mcq(object):
         except Exception as e:
             checker_log.warn('[%s] connect err, get stats queue:%s' %
                              (self.meta_data, e))
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service='Sina_dsp_mcq_conn_fail',
+                                     description='mcq conn timeout 2s...',
+                                     alert_level=self.check_items['Sina_dsp_mcq_conn_fail'][0][1],
+                                     threshold=self.check_items['Sina_dsp_mcq_conn_fail'][0][0],
+                                     sms=self.check_items['Sina_dsp_mcq_conn_fail'][0][2],
+                                     mail=self.check_items['Sina_dsp_mcq_conn_fail'][0][3],
+                                     watchid=self.check_items['Sina_dsp_mcq_conn_fail'][0][4])
             return False
         return is_alive
 
@@ -48,9 +58,7 @@ class check_mcq(object):
         return stats
 
     def start_check(self):
-        check_list = [[self.heap_size_check, self.check_items['heap_size']]]
-        for func, threshold in check_list:
-            func(threshold)
+        self.heap_size_check(self.check_items)
         self.close_mc_conn()
 
     def heap_size_check(self, default_threshold):
@@ -64,13 +72,21 @@ class check_mcq(object):
                 size_written, size_read = value.split('/')
                 size = int(size_written) - int(size_read)
                 # this means that the key has a heap size threshold in zk config, compare with it
-                if key in self.check_items and size > int(self.check_items[key][0][0]):
+                if key in self.check_items and size > int(default_threshold[key][0][0]):
                     checker_log.warn('[%s %s] check heap size too much [%d] > threshold [%d]' %
-                                     (self.meta_data, key, size, int(self.check_items[key])))
+                                     (self.meta_data, key, size, int(default_threshold[key])))
+                    self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                             service=key,
+                                             description='mcq key %s heap size too much 2s...' % key,
+                                             alert_level=default_threshold[key][0][1],
+                                             threshold=default_threshold[key][0][0],
+                                             sms=default_threshold[key][0][2],
+                                             mail=default_threshold[key][0][3],
+                                             watchid=default_threshold[key][0][4])
                 # this means don't have a threshold in zk config, use default config ['heap_size'] 200000000000000
                 elif key not in self.check_items and size > int(default_threshold[0][0]):
                     checker_log.warn('[%s %s] check heap size too much [%s] > default threshold [%d]' %
-                                     (self.meta_data, key, size, int(self.check_items['heap_size'][0][0])))
+                                     (self.meta_data, key, size, int(default_threshold[key][0][0])))
                 # the heap size is consider as OK, use log level debug to logger this
                 else:
                     checker_log.debug('[%s %s] check heap size [%s] ok!' %
