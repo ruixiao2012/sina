@@ -25,8 +25,7 @@ class check_cacheservice(object):
 
     def start_check(self):
         check_list = [[self.check_cs_mem, 'Sina_dsp_cs_mem_size', self.check_items['Sina_dsp_cs_mem_size']],
-                      [self.check_cs_conn, 'Sina_dsp_cs_curr_connections',
-                       self.check_items['Sina_dsp_cs_curr_connections']]]
+                      [self.check_cs_conn, 'Sina_dsp_cs_curr_connections', self.check_items['Sina_dsp_cs_curr_connections']]]
         for func, check_key, check_values in check_list:
             func(check_key, check_values)
         self.close_conn()

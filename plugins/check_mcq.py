@@ -75,10 +75,12 @@ class check_mcq(object):
                 if key in self.check_items and size > int(default_threshold[key][0][0]):
                     checker_log.warn('[%s %s] check heap size too much [%d] > threshold [%d]' %
                                      (self.meta_data, key, size, int(default_threshold[key])))
+                    # mcq key heap size will send alert_type 'mcq' to riemann
                     self.riemann_client.send(host='%s-%s' % (self.host, self.port),
                                              service=key,
                                              description='mcq key %s heap size too much 2s...' % key,
                                              alert_level=default_threshold[key][0][1],
+                                             alert_type='mcq',
                                              threshold=default_threshold[key][0][0],
                                              sms=default_threshold[key][0][2],
                                              mail=default_threshold[key][0][3],
