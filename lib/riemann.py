@@ -20,7 +20,7 @@ class MyRiemann():
                                       port=self.config.get('riemann', 'riemann_port'))
 
     def send(self, host, service, metric=0, description='',
-             alert_level='', alert_type='',domain='', threshold=0,
+             alert_level='', alert_type='', domain='', threshold=0,
              sms='', mail='', watchid=''):
         """
         :param host: string e.g. 10.10.10.10-1000
@@ -36,12 +36,12 @@ class MyRiemann():
         """
         product = self.get_product(host)
         ctime = time.time()
-        attributes = self.aggre_attr(alert_level=alert_level, domain=domain,
+        attributes = self.aggre_attr(alert_level=alert_level, alert_type=alert_type, domain=domain,
                                      threshold=threshold, product=product, ctime=ctime, sms=sms, mail=mail,
                                      watchid=watchid)
         print attributes
         checker_log.warn('send to riemann [host:%s,service:%s,metric:%s,description:%s,'
-                         'alert_level:%s,domain:%s,threshold:%s,sms:%s,mail:%s,watchid:%s]' %
+                         'alert_level:%s,alert_type:%s,domain:%s,threshold:%s,sms:%s,mail:%s,watchid:%s]' %
                          (host, service, metric, description, alert_level, alert_type, domain, threshold, sms, mail, watchid))
         return self.client.send({
             "host": host,
@@ -57,10 +57,9 @@ class MyRiemann():
         :param kwargs:
         :return:
         """
-        #   "attributes":{"alert-level":"Alert_A","domain":"rm.123456eos",
-        #   "description":"connfail","threshold":0,"ctime":"2014-10-01 00:00:01",
+        #   "attributes":{"alert-level":"Alert_A","alert-type":"","domain":"rm.123456eos",
+        #   "description":"conn_fail","threshold":0,"ctime":timestamp,
         #   "product":"weibo_xxx","sms":"zengtao","mail":"zengtao@staff.sina.com.cn","watchid":"xxx"}})
-        # return a dict
         return kwargs
 
     def get_product(self, host_port):

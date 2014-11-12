@@ -68,7 +68,7 @@ class NodeFromZK(object):
             ret_info = urlutil.curl_post_data(url, data)
             ret_dict = urlutil.curl_load_json(url, ret_info)
         except Exception as e:
-            raise Exception('post url to get %s info fail:%s' % (self.service_name, e))
+            raise Exception('post url to get service:%s alert nodes info fail:%s' % (self.service_name, e))
         # if ret_val status is 0 , means return err
         if ret_dict['status'] == 0:
             raise JsonReturnIllegal('return json status 0,json:%s' % ret_dict)
