@@ -39,6 +39,7 @@ class NodeFromZK(object):
         default_alert_conf_dict = self.get_default_alert_conf()
         for node, online_alert_conf_dict in nodes_dict.items():
             online_alert_conf_dict = online_alert_conf_dict.strip()
+            # if online alert conf dict is None or '' , use the default alert conf
             if online_alert_conf_dict == 'None' or not online_alert_conf_dict or not online_alert_conf_dict == '':
                 nodes_list.append([node, default_alert_conf_dict])
             else:
@@ -53,6 +54,7 @@ class NodeFromZK(object):
     def get_default_alert_conf(self):
         try:
             conf_dict = AlertConfFromZK(self.service_name).get_conf()
+            conf_dict = parse_alert_conf(conf_dict)
         except Exception as e:
             raise Exception('[%s] configure get from zk api fail:%s' %
                             (self.service_name, e))
@@ -89,7 +91,7 @@ class AlertConfFromZK(object):
 
     def get_conf(self):
         try:
-            url = self.config.get('global', 'zk_get_node_api')
+            url = self.config.get('global', 'zk_node_api') + "getNode/"
             watch_service_alert_conf_dict = eval(self.config.get('global', 'watch_service_alert_conf_dict'))
             data = {
                 "node_path": "%s%s" % (self.config.get('global', 'zk_alert_conf_dir'),
@@ -99,8 +101,7 @@ class AlertConfFromZK(object):
             ret_dict = urlutil.curl_load_json(url, ret_info)
         except Exception:
             raise
-        conf_dict = parse_alert_conf(ret_dict['content'])
-        return conf_dict
+        return ret_dict['content']
 
 
 def is_alert_conf_dict(alert_conf_dict):
@@ -130,7 +131,7 @@ def parse_alert_conf(conf_data):
                 conf_dict[metric] = []
             conf_dict[metric].append([threshold, alert_level, sms, mail, watchid])
     except Exception as e:
-        raise Exception('configure from zk parse fail:%s' % e)
+        raise Exception('configure from zk parse fail:%s' %e)
     return conf_dict
 
 

@@ -1,0 +1,87 @@
+__author__ = 'qipanguan'
+# !/usr/bin/python2.6
+'''
+Directly call sina_alert Checker start function and mark pid to pid file
+Stop by read pid from pid file
+'''
+
+from optparse import OptionParser
+from lib import config
+from lib import urlutil
+
+
+def main():
+    parser = OptionParser(usage='%prog [options] arg')
+    parser.add_option('-l', '--ls',
+                      help='list zk dir like zkCli.sh ls /'
+                           'e.g. -l /dspalert/redis'
+                           'e.g. -l /dspalert/redis/yf/')
+    parser.add_option('-g', '--get',
+                      help='get node info from zk api'
+                           'e.g. -g /dspalert/redis/yf/10.10.10.10:1234')
+    parser.add_option('-s', '--set',
+                      help='set or create node info from zk api'
+                           'e.g. -s /dspalert/redis/yf/10.10.10.10:1234 '
+                           'Sina_dsp_cs_curr_connections:180000:Alert_A:test_dsp:test_dsp:2013111310\n...')
+    parser.add_option('-d', '--delete',
+                      help='del node info from zk api'
+                           'e.g. -d /dspalert/redis/yf/10.10.10.10:1234')
+    parser.print_help()
+    (options, args) = parser.parse_args()
+    myconfig = config.Config()
+    url = myconfig.config_parser.get('global', 'zk_node_api')
+    print options, len(args)
+
+    if options.get and len(args) == 0:
+        url += 'getNode/'
+        data = {
+            "node_path": "%s" % options.get
+        }
+        ret_info = urlutil.curl_post_data(url, data)
+        ret = urlutil.curl_load_json(url, ret_info)
+        if ret['result'] is not True:
+            print ret
+        else:
+            print ret['content']
+    elif options.ls and len(args) == 0:
+        url += 'getChildrenNode/'
+        data = {
+            "node_path": "%s" % options.ls
+        }
+        ret_info = urlutil.curl_post_data(url, data)
+        ret = urlutil.curl_load_json(url, ret_info)
+        if ret['result'] is not True:
+            print ret
+        else:
+            print options.ls + ' node_num:' + str(len(ret['content']))
+            print ','.join(ret['content'])
+    elif options.set and len(args) == 1:
+        url += 'createOrUpdateNode/'
+        data = {
+            "node_path": "%s" % options.set,
+            "node_data": "%s" % args[0]
+        }
+        ret_info = urlutil.curl_post_data(url, data)
+        ret = urlutil.curl_load_json(url, ret_info)
+        if ret['result'] != 'True':
+            print ret
+        else:
+            print ret['content']
+    elif options.delete and len(args) == 0:
+        url += 'deleteNode/'
+        data = {
+            "node_path": "%s" % options.delete
+        }
+        ret_info = urlutil.curl_post_data(url, data)
+        ret = urlutil.curl_load_json(url, ret_info)
+        if ret['result'] != 'True':
+            print ret
+        else:
+            print ret['content']
+    else:
+        print args
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
