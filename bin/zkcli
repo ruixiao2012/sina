@@ -26,11 +26,10 @@ def main():
     parser.add_option('-d', '--delete',
                       help='del node info from zk api'
                            'e.g. -d /dspalert/redis/yf/10.10.10.10:1234')
-    parser.print_help()
+
     (options, args) = parser.parse_args()
     myconfig = config.Config()
     url = myconfig.config_parser.get('global', 'zk_node_api')
-    print options, len(args)
 
     if options.get and len(args) == 0:
         url += 'getNode/'
@@ -42,6 +41,7 @@ def main():
         if ret['result'] is not True:
             print ret
         else:
+            print options.get + ":"
             print ret['content']
     elif options.ls and len(args) == 0:
         url += 'getChildrenNode/'
@@ -66,7 +66,7 @@ def main():
         if ret['result'] != 'True':
             print ret
         else:
-            print ret['content']
+            print ret
     elif options.delete and len(args) == 0:
         url += 'deleteNode/'
         data = {
@@ -77,7 +77,7 @@ def main():
         if ret['result'] != 'True':
             print ret
         else:
-            print ret['content']
+            print ret
     else:
         print args
         parser.print_help()
