@@ -6,14 +6,16 @@ __author__ = 'qipanguan'
 
 import logging
 import logging.handlers
-from lib import config
+#from lib import config
+import config
 
 cp = config.Config().config_parser
 logger_list = ['logger']
 
 for mylog in logger_list:
     log_name = cp.get(mylog, 'name')
-    log_level = cp.get(mylog, 'log_level')
+    #log_level = cp.get(mylog, 'log_level')
+    log_level = logging.DEBUG
     log_file = '%s/%s.log' % (cp.get(mylog, 'log_dir'), log_name)
 
     logger = logging.getLogger(log_name)

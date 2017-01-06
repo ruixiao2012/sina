@@ -19,7 +19,7 @@ class MyRiemann():
         self.client = bernhard.Client(host=self.config.get('riemann', 'riemann_host'),
                                       port=self.config.get('riemann', 'riemann_port'))
 
-    def send(self, host, service,ip_port, metric=0, description='',
+    def send(self, host, service, metric=0, description='',
              alert_level='', alert_type='', domain='', threshold=0,
              sms='', mail='', watchid=''):
         """
@@ -34,7 +34,7 @@ class MyRiemann():
         :param mail: mail to
         :param watchid: use sinawatch kid
         """
-        product = self.get_product(ip_port)
+        product = self.get_product(host)
         ctime = time.time()
         attributes = self.aggre_attr(alert_level=alert_level, alert_type=alert_type, domain=domain,
                                      threshold=threshold, product=product, ctime=ctime, sms=sms, mail=mail,
@@ -85,7 +85,6 @@ if __name__ == '__main__':
     r = MyRiemann()
     ret = r.send(host='10.73.24.210-10101',
                  service='sinadsp_cacheservice_conn_fail',
-                 ip_port='10.73.24.210-10101',
                  description='i conn_fail',
                  alert_level='Alert_A',
                  sms='qipan',

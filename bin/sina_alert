@@ -6,6 +6,7 @@ Stop by read pid from pid file
 '''
 import os
 import sys
+sys.path.append('/data1/dsp/sinaalert')
 import signal
 from checker import Checker
 from optparse import OptionParser

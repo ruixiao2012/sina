@@ -9,6 +9,9 @@ import logging
 from lib import urlutil
 from lib import logger
 from lib import config
+#import urlutil
+#import logger
+#import config
 
 checker_log = logging.getLogger('dsp_alert')
 
@@ -40,7 +43,7 @@ class NodeFromZK(object):
         for node, online_alert_conf_dict in nodes_dict.items():
             online_alert_conf_dict = online_alert_conf_dict.strip()
             # if online alert conf dict is None or '' , use the default alert conf
-            if online_alert_conf_dict == 'None' or not online_alert_conf_dict or not online_alert_conf_dict == '':
+            if online_alert_conf_dict == 'None' or not online_alert_conf_dict or  online_alert_conf_dict == '':
                 nodes_list.append([node, default_alert_conf_dict])
             else:
                 if is_alert_conf_dict(online_alert_conf_dict):

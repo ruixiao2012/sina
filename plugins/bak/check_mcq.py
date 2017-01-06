@@ -1,6 +1,7 @@
 __author__ = 'qipanguan'
 # Callable MCQ Check Module
 # Author: Qipan Guan <qipan@staff.sina.com.cn>
+import time
 import memcache
 import logging
 from lib import riemann
@@ -15,10 +16,23 @@ class check_mcq(object):
         self.service_name = 'mcq'
         self.meta_data = '%s_%s_%s' % (self.service_name, self.host, self.port)
         self.riemann_client = riemann.MyRiemann()
-        self.is_alive = self.alive_check()
-        if self.is_alive:
-            self.queue_info_dict = self.get_queue_stats()
-            self.start_check()
+        for i in range(5):
+            self.is_alive = self.alive_check()
+            if self.is_alive:
+                self.queue_info_dict = self.get_queue_stats()
+                self.start_check()
+                break
+            time.sleep(0.5)
+        if not self.is_alive:
+            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
+                                     service='Sina_dsp_mq_conn_fail',
+                                     ip_port='%s-%s' % (self.host, self.port),
+                                     description='mcq conn fail',
+                                     alert_level=self.check_items['Sina_dsp_mq_conn_fail'][0][1],
+                                     threshold=self.check_items['Sina_dsp_mq_conn_fail'][0][0],
+                                     sms=self.check_items['Sina_dsp_mq_conn_fail'][0][2],
+                                     mail=self.check_items['Sina_dsp_mq_conn_fail'][0][3],
+                                     watchid=self.check_items['Sina_dsp_mq_conn_fail'][0][4])
 
     def close_mc_conn(self):
         try:
@@ -30,19 +44,11 @@ class check_mcq(object):
         server = ['%s:%s' % (self.host, self.port)]
         try:
             is_alive = memcache.Client(server)
-            is_alive.socket_timeout = 2
+            is_alive.socket_timeout = 3
             is_alive.get_stats('queue')[0][1]
         except Exception as e:
             checker_log.warn('[%s] connect err, get stats queue:%s' %
                              (self.meta_data, e))
-            self.riemann_client.send(host='%s-%s' % (self.host, self.port),
-                                     service='Sina_dsp_mcq_conn_fail',
-                                     description='mcq conn timeout 2s...',
-                                     alert_level=self.check_items['Sina_dsp_mcq_conn_fail'][0][1],
-                                     threshold=self.check_items['Sina_dsp_mcq_conn_fail'][0][0],
-                                     sms=self.check_items['Sina_dsp_mcq_conn_fail'][0][2],
-                                     mail=self.check_items['Sina_dsp_mcq_conn_fail'][0][3],
-                                     watchid=self.check_items['Sina_dsp_mcq_conn_fail'][0][4])
             return False
         return is_alive
 
@@ -74,13 +80,15 @@ class check_mcq(object):
                 # this means that the key has a heap size threshold in zk config, compare with it
                 if key in self.check_items and size > int(default_threshold[key][0][0]):
                     checker_log.warn('[%s %s] check heap size too much [%d] > threshold [%d]' %
-                                     (self.meta_data, key, size, int(default_threshold[key])))
+                                     (self.meta_data, key, size, int(default_threshold[key][0][0])))
                     # mcq key heap size will send alert_type 'mcq' to riemann
-                    self.riemann_client.send(host='%s-%s' % (self.host, self.port),
-                                             service=key,
-                                             description='mcq key %s heap size too much 2s...' % key,
+                    self.riemann_client.send(host='%s' % (self.port),
+                                             service='mcq_'+ key,
+                                             ip_port='%s-%s' % (self.host, self.port),
+                                             metric=size,
+                                             description='',
                                              alert_level=default_threshold[key][0][1],
-                                             alert_type='mcq',
+                                             #alert_type='mcq',
                                              threshold=default_threshold[key][0][0],
                                              sms=default_threshold[key][0][2],
                                              mail=default_threshold[key][0][3],

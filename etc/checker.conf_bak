@@ -2,13 +2,18 @@
 idc = yf
 pid_file = sinaalert_checker.pid
 zk_alert_conf_dir = /dspalert/conf/
-zk_aggr_api = http://10.75.17.191/zkapi/getMonitorConfig/
-zk_node_api = http://10.75.17.191/zkapi/
+zk_aggr_api = http://testdsp.cluster.sina.com.cn/zkapi/getMonitorConfig/
+zk_node_api = http://testdsp.cluster.sina.com.cn/zkapi/
 watch_service_class_dict = {
-                      'xrTest':check_hadoop,
+                      'mcq': check_mcq,
+                      'hadoopzk':check_hadoopzk,
                       }
 watch_service_alert_conf_dict =  {
-        'xrTest':'XrTestConf',
+        'mc': 'McMonConf',
+        'mcq': 'McqMonConf',
+        'cs': 'CsMonConf',
+        'redis': 'RedisMonConf',
+        'hadoopzk':'HadoopZkConf',
     }
 
 [logger]

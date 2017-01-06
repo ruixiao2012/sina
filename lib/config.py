@@ -10,7 +10,7 @@ class Config(object):
         self.config_parser = ConfigParser.ConfigParser()
 
         if not dest:
-            self.config_parser.read('../etc/checker.conf')
+            self.config_parser.read('/data1/dsp/sinaalert/etc/checker.conf')
         else:
             try:
                 self.config_parser.read(dest)

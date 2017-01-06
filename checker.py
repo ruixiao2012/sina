@@ -12,9 +12,8 @@ from lib import thread_pool
 from lib import logger
 from lib import ZKutil
 from lib import config
-from plugins.check_cacheservice import check_cacheservice
-from plugins.check_sinaredis import check_sinaredis
-from plugins.check_mcq import check_mcq
+#from plugins.check_hadoopzk import check_hadoopzk
+from plugins.check_hadoop import check_hadoop
 
 
 checker_log = logging.getLogger('dsp_alert')
